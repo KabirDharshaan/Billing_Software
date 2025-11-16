@@ -16,7 +16,7 @@ const AdminSidebar = ({ setPage, activePage }) => {
   return (
     <div className="h-screen w-64 bg-teal-700 text-white flex flex-col justify-between py-6 px-4">
 
-      {/* Logo Section */}
+     
       <div>
         <div className="flex items-center gap-3 px-2 mb-8 cursor-pointer" onClick={() => setPage("admin_dashboard")}>
           <div className="bg-white p-3 rounded-xl">
@@ -37,10 +37,10 @@ const AdminSidebar = ({ setPage, activePage }) => {
           </div>
         </div>
 
-        {/* Menu Items */}
+      
         <nav className="flex flex-col gap-5 mt-6">
 
-          {/* Active Dashboard */}
+       
           <SidebarItem
             title="Dashboard"
             Icon={LayoutGrid}

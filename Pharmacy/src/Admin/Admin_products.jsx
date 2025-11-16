@@ -1,8 +1,12 @@
-// Admin_Products.jsx
+
+
 import React, { useState } from "react";
-import { FiEdit2, FiTrash2, FiUpload, FiDownload, FiPlus } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiDownload, FiPlus } from "react-icons/fi";
+import AddProductForm from "./Admin_Add_product_from";
 
 export default function Admin_Products() {
+  const [showAddForm, setShowAddForm] = useState(false);
+
   const [products, setProducts] = useState([
     {
       id: 1,
@@ -91,6 +95,11 @@ export default function Admin_Products() {
         Manage your product catalog and stock levels
       </p>
 
+      {/* SHOW ADD PRODUCT MODAL */}
+      {showAddForm && (
+        <AddProductForm onClose={() => setShowAddForm(false)} />
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card title="Total Products" value={products.length} icon="📦" />
@@ -148,12 +157,16 @@ export default function Admin_Products() {
           <FiDownload /> Export
         </button>
 
-        <button className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg">
+        {/* ADD PRODUCT BUTTON — Opens Form */}
+        <button
+          className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg"
+          onClick={() => setShowAddForm(true)}
+        >
           <FiPlus /> Add Product
         </button>
       </div>
 
-      {/* Table */}
+      {/* TABLE */}
       <div className="bg-white rounded-xl shadow p-4 overflow-x-auto">
         <table className="w-full text-left">
           <thead>
