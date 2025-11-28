@@ -1,5 +1,9 @@
 
-import React, { useState } from "react";
+
+import React, { useEffect, useState } from "react";
+
+const API_PRODUCTS = "http://localhost:5000/api/products";
+const API_BILLS = "http://localhost:5000/api/bills";
 
 export default function CreateBill() {
   const [customer, setCustomer] = useState({ name: "", phone: "" });
@@ -7,128 +11,166 @@ export default function CreateBill() {
   const [items, setItems] = useState([]);
   const [discount, setDiscount] = useState(0);
   const [payment, setPayment] = useState("Cash");
-  const [payments, setPayments] = useState([]);
 
-  const productList = [
-    { id: 1, name: "Paracetamol 500mg", price: 25 },
-    { id: 2, name: "Dolo 650", price: 35 },
-    { id: 3, name: "Amoxicillin 250mg", price: 60 },
-    { id: 4, name: "Vitamin C Tablets", price: 85 },
-    { id: 5, name: "Cough Syrup", price: 120 },
-  ];
+  const [products, setProducts] = useState([]);
+  const [bills, setBills] = useState([]);
 
-  const filteredProducts = productList.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  // ---------------------- FETCH PRODUCTS ----------------------
+  useEffect(() => {
+    fetchProducts();
+    fetchBills();
+  }, []);
+
+  const fetchProducts = () => {
+    fetch(API_PRODUCTS)
+      .then((res) => res.json())
+      .then((data) => setProducts(Array.isArray(data) ? data : []))
+      .catch(() => setProducts([]));
+  };
+
+  // ---------------------- FETCH BILLS ----------------------
+  const fetchBills = () => {
+    fetch(API_BILLS)
+      .then((res) => res.json())
+      .then((data) => setBills(Array.isArray(data) ? data : []))
+      .catch(() => setBills([]));
+  };
+
+  // ---------------------- FILTER PRODUCTS ----------------------
+  const filteredProducts = products.filter((p) =>
+    p.name?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // ---------------------- ADD ITEMS ----------------------
   const addItem = (product) => {
-    const exists = items.find((i) => i.id === product.id);
+    const stock = Number(product.stockQuantity ?? 0);
+    if (stock <= 0) return alert("This product is OUT OF STOCK!");
+
+    const exists = items.find((i) => i._id === product._id);
+
     if (exists) {
-      setItems(
-        items.map((i) =>
-          i.id === product.id ? { ...i, qty: i.qty + 1 } : i
-        )
-      );
+      if (exists.qty + 1 > stock) return alert("Not enough stock available!");
+      setItems(items.map((i) => (i._id === product._id ? { ...i, qty: i.qty + 1 } : i)));
     } else {
       setItems([...items, { ...product, qty: 1 }]);
     }
   };
 
+  // ---------------------- UPDATE QUANTITY ----------------------
   const updateQty = (id, qty) => {
+    const product = products.find((p) => p._id === id);
+    const stock = Number(product.stockQuantity ?? 0);
+
+    if (qty > stock) return alert("Stock unavailable");
     if (qty < 1) return;
-    setItems(items.map((i) => (i.id === id ? { ...i, qty } : i)));
+
+    setItems(items.map((i) => (i._id === id ? { ...i, qty } : i)));
   };
 
+  // ---------------------- REMOVE ITEM ----------------------
   const removeItem = (id) => {
-    setItems(items.filter((i) => i.id !== id));
+    setItems(items.filter((i) => i._id !== id));
   };
 
+  // ---------------------- BILL CALCULATIONS ----------------------
   const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
   const gst = subtotal * 0.18;
   const total = subtotal - (subtotal * discount) / 100 + gst;
 
-  const timeAgo = (date) => {
-    const seconds = Math.floor((new Date() - date) / 1000);
-
-    if (seconds < 60) return "just now";
-    if (seconds < 3600) return Math.floor(seconds / 60) + " min ago";
-    if (seconds < 86400) return Math.floor(seconds / 3600) + " hours ago";
-
-    const days = Math.floor(seconds / 86400);
-    if (days === 1) return "yesterday";
-    return days + " days ago";
+  // ---------------------- UPDATE BACKEND STOCK ----------------------
+  const updateStock = async () => {
+    for (const item of items) {
+      const newStock = Number(item.stockQuantity ?? 0) - item.qty;
+      await fetch(`${API_PRODUCTS}/${item._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stockQuantity: newStock }),
+      });
+    }
   };
 
-  const handlePayment = () => {
-    if (items.length === 0) return alert("Add some items!");
+  // ---------------------- COMPLETE PAYMENT ----------------------
+  const handlePayment = async () => {
+    if (items.length === 0) return alert("Add some items first!");
 
-    const invoiceNumber = "INV-" + String(payments.length + 1).padStart(6, "0");
+    await updateStock();
 
-    const newPayment = {
-      invoice: invoiceNumber,
-      name: customer.name || "No Name",
-      amount: total,
-      method: payment, // <-- ADDED (IMPORTANT)
-      date: new Date(),
+    const invoiceNo = "INV-" + String(Date.now()).slice(-6);
+
+    const payload = {
+      invoice: invoiceNo,
+      customerName: customer.name || "No Name",
+      customerPhone: customer.phone,
+      items: items.map((i) => ({
+        _id: i._id,
+        name: i.name,
+        price: i.price,
+        qty: i.qty,
+      })),
+      subtotal,
+      discount,
+      gst,
+      total,
+      paymentMethod: payment,
+      paid: true, // default paid
     };
 
-    setPayments([newPayment, ...payments]);
+    const res = await fetch(API_BILLS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-    setItems([]);
-    setDiscount(0);
-    setCustomer({ name: "", phone: "" });
-    alert("Payment Successful!");
+    if (res.ok) {
+      alert("Bill created successfully!");
+      setItems([]);
+      setCustomer({ name: "", phone: "" });
+      setDiscount(0);
+      setPayment("Cash");
+
+      fetchProducts();
+      fetchBills();
+    } else {
+      alert("Failed to save bill!");
+    }
   };
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 p-6 flex flex-col gap-6">
-
-      {/* MAIN BILL PAGE */}
+    <div className="w-full min-h-screen bg-gray-50 p-6 flex flex-col gap-8">
+      {/* ---------------------- MAIN SECTION ---------------------- */}
       <div className="flex gap-6">
-
-        {/* LEFT SIDE */}
+        {/* ---------------------- LEFT SIDE ---------------------- */}
         <div className="w-3/4 space-y-6">
           <h1 className="text-3xl font-bold">Create New Bill</h1>
-          <p className="text-gray-600">Process customer transactions quickly</p>
 
-          {/* CUSTOMER INFO */}
+          {/* CUSTOMER */}
           <div className="bg-white shadow rounded-xl p-5">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <span className="text-green-600">●</span> Customer Information
-            </h2>
-
+            <h2 className="text-lg font-semibold mb-4">Customer</h2>
             <div className="grid grid-cols-2 gap-4">
               <input
                 type="text"
                 placeholder="Customer Name"
                 className="border rounded-lg px-3 py-2 w-full"
                 value={customer.name}
-                onChange={(e) =>
-                  setCustomer({ ...customer, name: e.target.value })
-                }
+                onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
               />
-
               <input
                 type="text"
                 placeholder="Phone Number"
                 className="border rounded-lg px-3 py-2 w-full"
                 value={customer.phone}
-                onChange={(e) =>
-                  setCustomer({ ...customer, phone: e.target.value })
-                }
+                onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
               />
             </div>
           </div>
 
-          {/* PRODUCT SEARCH */}
+          {/* SEARCH PRODUCT */}
           <div className="bg-white shadow rounded-xl p-5">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <span className="text-green-600">🔍</span> Add Products
-            </h2>
+            <h2 className="text-lg font-semibold mb-4">Add Products</h2>
 
             <input
               type="text"
-              placeholder="Search products..."
+              placeholder="Search products…"
               className="border rounded-lg px-3 py-2 w-full mb-4"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -137,17 +179,28 @@ export default function CreateBill() {
             {search && (
               <div className="border rounded-xl p-4 max-h-40 overflow-y-auto">
                 {filteredProducts.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No products found</p>
+                  <p className="text-gray-500">No products found</p>
                 ) : (
                   filteredProducts.map((p) => (
                     <div
-                      key={p.id}
-                      className="flex justify-between items-center py-2 border-b last:border-none"
+                      key={p._id}
+                      className="flex justify-between items-center py-2 border-b"
                     >
-                      <span>{p.name}</span>
+                      <span>
+                        {p.name}{" "}
+                        {p.stockQuantity <= 0 && (
+                          <span className="text-red-500">(Out of Stock)</span>
+                        )}
+                      </span>
+
                       <button
+                        disabled={p.stockQuantity <= 0}
                         onClick={() => addItem(p)}
-                        className="bg-teal-500 text-white px-3 py-1 rounded-lg"
+                        className={`px-3 py-1 rounded-lg ${
+                          p.stockQuantity > 0
+                            ? "bg-teal-500 text-white"
+                            : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                        }`}
                       >
                         Add
                       </button>
@@ -158,18 +211,15 @@ export default function CreateBill() {
             )}
           </div>
 
-          {/* BILL ITEMS */}
+          {/* ITEMS TABLE */}
           <div className="bg-white shadow rounded-xl p-5 min-h-[200px]">
             {items.length === 0 ? (
-              <div className="text-center text-gray-500">
-                <div className="text-4xl mb-2">🧾</div>
-                No items added yet
-              </div>
+              <p className="text-center text-gray-500">No items added yet</p>
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr className="text-left border-b">
-                    <th className="py-2">Product</th>
+                  <tr className="border-b">
+                    <th>Product</th>
                     <th>Price</th>
                     <th>Qty</th>
                     <th>Total</th>
@@ -179,27 +229,22 @@ export default function CreateBill() {
 
                 <tbody>
                   {items.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="py-2">{item.name}</td>
+                    <tr key={item._id} className="border-b">
+                      <td>{item.name}</td>
                       <td>₹{item.price}</td>
-
                       <td>
                         <input
                           type="number"
-                          min="1"
                           className="border w-16 px-2 py-1 rounded-lg"
                           value={item.qty}
-                          onChange={(e) =>
-                            updateQty(item.id, Number(e.target.value))
-                          }
+                          min="1"
+                          onChange={(e) => updateQty(item._id, Number(e.target.value))}
                         />
                       </td>
-
                       <td>₹{(item.qty * item.price).toFixed(2)}</td>
-
                       <td>
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(item._id)}
                           className="text-red-500"
                         >
                           ✖
@@ -213,99 +258,109 @@ export default function CreateBill() {
           </div>
         </div>
 
-        {/* RIGHT SIDE SUMMARY */}
+        {/* ---------------------- RIGHT SUMMARY ---------------------- */}
         <div className="w-1/4 bg-white shadow rounded-xl p-6 space-y-6">
           <h2 className="text-xl font-semibold">Bill Summary</h2>
 
-          <div className="flex justify-between text-gray-700">
+          <div className="flex justify-between">
             <span>Subtotal</span>
             <span>₹{subtotal.toFixed(2)}</span>
           </div>
 
           <div>
-            <label className="text-gray-700">Discount (%)</label>
+            <label>Discount (%)</label>
             <input
               type="number"
-              className="border rounded-lg px-3 py-2 w-full mt-1"
+              className="border rounded-lg px-3 py-2 w-full"
               value={discount}
               onChange={(e) => setDiscount(Number(e.target.value))}
             />
           </div>
 
-          <div className="flex justify-between text-gray-700">
+          <div className="flex justify-between">
             <span>GST (18%)</span>
             <span>₹{gst.toFixed(2)}</span>
           </div>
 
           <div className="flex justify-between font-bold text-lg">
-            <span>Total Amount</span>
+            <span>Total</span>
             <span>₹{total.toFixed(2)}</span>
           </div>
 
-          <div>
-            <label className="text-gray-700">Payment Method</label>
-            <select
-              className="border rounded-lg px-3 py-2 w-full mt-1"
-              value={payment}
-              onChange={(e) => setPayment(e.target.value)}
-            >
-              <option>Cash</option>
-              <option>Card</option>
-              <option>UPI</option>
-            </select>
-          </div>
+          <select
+            className="border rounded-lg px-3 py-2 w-full"
+            value={payment}
+            onChange={(e) => setPayment(e.target.value)}
+          >
+            <option>Cash</option>
+            <option>Card</option>
+            <option>UPI</option>
+          </select>
 
           <button
             onClick={handlePayment}
-            className="w-full bg-teal-500 text-white py-2 rounded-lg font-semibold"
+            className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700"
           >
             Complete Payment
-          </button>
-
-          <button className="w-full border py-2 rounded-lg mt-2">
-            Print Invoice
           </button>
         </div>
       </div>
 
-      {/* RECENT PAYMENTS */}
-      <div className="bg-white shadow rounded-xl p-6">
-        <h2 className="text-2xl font-semibold mb-4">Recent Payments</h2>
+      {/* ---------------------- RECENT BILLS ---------------------- */}
+      <div className="mt-5">
+        <h2 className="text-xl font-semibold mb-4">Recent Bills</h2>
 
-        {payments.length === 0 ? (
-          <p className="text-gray-500 text-center">No recent payments</p>
+        {bills.length === 0 ? (
+          <p className="text-gray-500">No bills created yet</p>
         ) : (
           <div className="space-y-4">
-            {payments.map((p, index) => (
+            {bills.map((b) => (
               <div
-                key={index}
-                className="border rounded-xl p-4 relative bg-gray-50"
+                key={b._id}
+                className="bg-white shadow rounded-xl p-4 flex flex-col gap-3 border"
               >
-                <span className="absolute top-2 right-3 bg-green-600 text-white text-xs px-2 py-1 rounded-lg">
-                  PAID
-                </span>
+                {/* Header: Invoice & Paid Status */}
+                <div className="flex justify-between items-center">
+                  <p className="font-semibold text-lg">{b.invoice}</p>
+                  {/* ALWAYS show Paid in green */}
+                  <span className="px-3 py-1 rounded-full text-sm bg-green-100 text-green-700">
+                    Paid
+                  </span>
+                </div>
 
-                <h3 className="text-lg font-bold">{p.invoice}</h3>
-                <p className="text-gray-700">{p.name}</p>
+                {/* Customer & Payment Method */}
+                <div className="flex justify-between text-gray-600">
+                  <span>{b.customerName || "No Name"}</span>
+                  <span>{b.paymentMethod || "Cash"}</span>
+                </div>
 
-                <p className="text-sm text-gray-500">
-                  {timeAgo(new Date(p.date))} • {new Date(p.date).toLocaleString()}
+                {/* Date & Time */}
+                <p className="text-gray-400 text-sm">
+                  {new Date(b.createdAt).toLocaleString()}
                 </p>
 
-                {/* ADDED PAYMENT METHOD AT BOTTOM RIGHT */}
-                <div className="flex justify-between items-center mt-2">
-                  <p className="font-semibold text-lg">₹{p.amount.toFixed(2)}</p>
+                {/* Purchased Products */}
+                <div className="border-t pt-2">
+                  <p className="font-semibold mb-1">Products:</p>
+                  <ul className="list-disc pl-5 text-gray-700 text-sm">
+                    {b.items.map((item) => (
+                      <li key={item._id}>
+                        {item.name} — ₹{item.price} × {item.qty} = ₹
+                        {(item.price * item.qty).toFixed(2)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-                  <span className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-lg">
-                    {p.method}
-                  </span>
+                {/* Total Amount */}
+                <div className="flex justify-end font-bold text-lg mt-2">
+                  <span>Total: ₹{b.total.toFixed(2)}</span>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
-
     </div>
   );
 }

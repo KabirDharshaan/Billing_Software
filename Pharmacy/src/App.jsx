@@ -1,4 +1,5 @@
 
+
 import React, { useState } from "react";
 
 // Login Page
@@ -11,7 +12,7 @@ import AdminProducts from "./Admin/Admin_products";
 import CreateBill from "./Admin/Admin_Billing_page";
 import AdminSupplier from "./Admin/Admin_Supplier";
 import AdminReport from "./Admin/Admin_reports";
-import AdminCustomers from "./Admin/Admin_customers";  
+import AdminCustomers from "./Admin/Admin_customers";
 
 // Cashier Pages
 import CashierSidebar from "./Cashier/Cashier_nav";
@@ -27,25 +28,18 @@ const App = () => {
       switch (page) {
         case "admin_dashboard":
           return <AdminDashboard />;
-
         case "admin_products":
           return <AdminProducts setPage={setPage} />;
-
         case "admin_billing":
           return <CreateBill />;
-
         case "admin_suppliers":
           return <AdminSupplier />;
-
         case "admin_reports":
           return <AdminReport />;
-
-        case "admin_customers":                         
+        case "admin_customers":
           return <AdminCustomers />;
-
         case "admin_settings":
           return <div>Settings Coming Soon...</div>;
-
         default:
           return <AdminDashboard />;
       }
@@ -55,7 +49,6 @@ const App = () => {
       switch (page) {
         case "cashier_dashboard":
           return <CashierDashboard />;
-
         default:
           return <CashierDashboard />;
       }
@@ -65,21 +58,25 @@ const App = () => {
   };
 
   return (
-    <div
-      className={
-        page === "login"
-          ? "min-h-screen flex items-center justify-center"
-          : "min-h-screen flex"
-      }
-    >
+    <div className="min-h-screen w-full">
+
       {/* ---------------- LOGIN PAGE ---------------- */}
-      {page === "login" && <Home setPage={setPage} setRole={setRole} />}
+      {page === "login" && (
+        <div className="min-h-screen flex items-center justify-center">
+          <Home setPage={setPage} setRole={setRole} />
+        </div>
+      )}
 
       {/* ---------------- ADMIN LAYOUT ---------------- */}
       {page !== "login" && role === "Admin" && (
-        <div className="flex w-full">
-          <AdminSidebar setPage={setPage} activePage={page} />
-          <div className="flex-1 bg-gray-100 p-4 overflow-y-auto">
+        <div className="flex min-h-screen w-full">
+          {/* FIXED SIDEBAR */}
+          <div className="w-[250px] h-screen fixed top-0 left-0 bg-white shadow-lg">
+            <AdminSidebar setPage={setPage} activePage={page} />
+          </div>
+
+          {/* SCROLLABLE CONTENT */}
+          <div className="ml-[250px] flex-1 h-screen overflow-y-auto p-4 bg-gray-100">
             {renderPage()}
           </div>
         </div>
@@ -87,9 +84,14 @@ const App = () => {
 
       {/* ---------------- CASHIER LAYOUT ---------------- */}
       {page !== "login" && role === "Cashier" && (
-        <div className="flex w-full">
-          <CashierSidebar setPage={setPage} activePage={page} />
-          <div className="flex-1 bg-gray-100 p-4 overflow-y-auto">
+        <div className="flex min-h-screen w-full">
+          {/* FIXED SIDEBAR */}
+          <div className="w-[250px] h-screen fixed top-0 left-0 bg-white shadow-lg">
+            <CashierSidebar setPage={setPage} activePage={page} />
+          </div>
+
+          {/* SCROLLABLE CONTENT */}
+          <div className="ml-[250px] flex-1 h-screen overflow-y-auto p-4 bg-gray-100">
             {renderPage()}
           </div>
         </div>
