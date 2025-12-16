@@ -1,62 +1,89 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FiPhone,
   FiMail,
   FiCalendar,
   FiEdit2,
   FiTrash2,
+  FiPlus,
 } from "react-icons/fi";
 import { BsPerson } from "react-icons/bs";
 import { FaCrown } from "react-icons/fa";
 import { MdOutlinePlaylistAddCheck } from "react-icons/md";
 import { AiOutlineCalendar } from "react-icons/ai";
-import { FiPlus } from "react-icons/fi";
+
+import Admin_Add_Customer from "./Admin_Add_Customers";
 
 export default function AdminCustomer() {
+  const [customers, setCustomers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const customers = [
-    {
-      id: 1,
-      name: "John Doe",
-      phone: "+91 98765 43210",
-      email: "john.doe@email.com",
-      lastVisit: "2025-01-10",
-      loyaltyPoints: 450,
-      purchases: 12500,
-      hasPrescription: true,
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      phone: "+91 98765 43211",
-      email: "jane.smith@email.com",
-      lastVisit: "2025-01-12",
-      loyaltyPoints: 280,
-      purchases: 8900,
-      hasPrescription: false,
-    },
-    {
-      id: 3,
-      name: "Mike Johnson",
-      phone: "+91 98765 43212",
-      email: "mike.j@email.com",
-      lastVisit: "2025-01-14",
-      loyaltyPoints: 650,
-      purchases: 15600,
-      hasPrescription: true,
-    },
-  ];
+  /* ---------------- FETCH CUSTOMERS ---------------- */
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
-  const filtered = customers.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:5000/api/customers");
+      const data = await res.json();
+
+      if (data.success) {
+        setCustomers(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch customers", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- ADD CUSTOMER ---------------- */
+  const handleAddCustomer = async (newCustomer) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCustomer),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.message);
+        return;
+      }
+
+      fetchCustomers();
+      setShowAddModal(false);
+      alert("Customer added successfully!");
+    } catch (error) {
+      console.error("Add customer failed", error);
+      alert("Failed to add customer");
+    }
+  };
+
+  /* ---------------- FILTER ---------------- */
+  const filtered = customers.filter(
+    (c) =>
+      c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.phone?.includes(searchQuery) ||
+      c.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  /* ---------------- STATS ---------------- */
+  const totalCustomers = customers.length;
+  const loyaltyMembers = customers.filter((c) => c.loyaltyPoints > 0).length;
+  const withPrescriptions = customers.filter((c) => c.notes).length;
 
   return (
     <div className="p-6">
 
-      {/* ------------------ HEADER ------------------ */}
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold">Customers</h1>
@@ -65,40 +92,24 @@ export default function AdminCustomer() {
           </p>
         </div>
 
-        {/* ⭐ ADD CUSTOMER BUTTON */}
         <button
           className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg flex items-center gap-2 shadow"
+          onClick={() => setShowAddModal(true)}
         >
           <FiPlus size={18} />
           Add Customer
         </button>
       </div>
 
-      {/* ------------------ STATS ------------------ */}
+      {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          icon={<BsPerson size={22} />}
-          title="Total Customers"
-          value="4"
-        />
-        <StatCard
-          icon={<FaCrown size={22} className="text-blue-600" />}
-          title="Loyalty Members"
-          value="4"
-        />
-        <StatCard
-          icon={<MdOutlinePlaylistAddCheck size={22} className="text-purple-600" />}
-          title="With Prescriptions"
-          value="2"
-        />
-        <StatCard
-          icon={<AiOutlineCalendar size={22} className="text-orange-600" />}
-          title="Visited This Week"
-          value="0"
-        />
+        <StatCard title="Total Customers" value={totalCustomers} icon={<BsPerson size={22} />} />
+        <StatCard title="Loyalty Members" value={loyaltyMembers} icon={<FaCrown size={22} />} />
+        <StatCard title="With Prescriptions" value={withPrescriptions} icon={<MdOutlinePlaylistAddCheck size={22} />} />
+        <StatCard title="Visited This Week" value="0" icon={<AiOutlineCalendar size={22} />} />
       </div>
 
-      {/* ------------------ SEARCH ------------------ */}
+      {/* SEARCH */}
       <div className="mb-6">
         <input
           type="text"
@@ -108,18 +119,30 @@ export default function AdminCustomer() {
         />
       </div>
 
-      {/* ------------------ CUSTOMER LIST ------------------ */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {filtered.map((c) => (
-          <CustomerCard key={c.id} customer={c} />
-        ))}
-      </div>
+      {/* LIST */}
+      {loading ? (
+        <p className="text-center text-gray-500">Loading customers...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {filtered.map((c) => (
+            <CustomerCard key={c._id} customer={c} />
+          ))}
+        </div>
+      )}
+
+      {/* MODAL */}
+      {showAddModal && (
+        <Admin_Add_Customer
+          onClose={() => setShowAddModal(false)}
+          onSubmit={handleAddCustomer}
+        />
+      )}
     </div>
   );
 }
 
-/* ------------------ STAT CARD ------------------ */
-const StatCard = ({ icon, title, value }) => (
+/* ---------------- STAT CARD ---------------- */
+const StatCard = ({ title, value, icon }) => (
   <div className="flex items-center gap-4 bg-white shadow rounded-xl p-5">
     <div className="p-3 bg-gray-100 rounded-full text-gray-700">{icon}</div>
     <div>
@@ -129,56 +152,53 @@ const StatCard = ({ icon, title, value }) => (
   </div>
 );
 
-/* ------------------ CUSTOMER CARD ------------------ */
+/* ---------------- CUSTOMER CARD ---------------- */
 const CustomerCard = ({ customer }) => {
   return (
     <div className="bg-white shadow-lg rounded-xl p-6 relative border border-gray-100">
-      {/* Top Icons */}
+
       <div className="absolute top-4 right-4 flex gap-3">
         <FiEdit2 className="cursor-pointer text-gray-600 hover:text-blue-600" />
         <FiTrash2 className="cursor-pointer text-gray-600 hover:text-red-600" />
       </div>
 
-      {/* Profile Icon */}
       <div className="flex justify-center mb-4">
         <div className="bg-teal-600 text-white p-4 rounded-full">
           <BsPerson size={30} />
         </div>
       </div>
 
-      {/* Details */}
       <h2 className="text-lg font-semibold text-center">{customer.name}</h2>
 
       <div className="mt-4 space-y-3 text-gray-700">
-
         <div className="flex items-center gap-3">
           <FiPhone /> <span>{customer.phone}</span>
         </div>
-
         <div className="flex items-center gap-3">
-          <FiMail /> <span>{customer.email}</span>
+          <FiMail /> <span>{customer.email || "—"}</span>
         </div>
-
         <div className="flex items-center gap-3">
-          <FiCalendar /> <span>Last visit: {customer.lastVisit}</span>
+          <FiCalendar />
+          <span>
+            Added on: {new Date(customer.createdAt).toLocaleDateString()}
+          </span>
         </div>
       </div>
 
-      {/* Bottom Info */}
       <div className="mt-6 border-t pt-4 grid grid-cols-2 text-center">
         <div>
           <p className="text-gray-600">Loyalty Points</p>
-          <p className="font-semibold text-teal-700">{customer.loyaltyPoints}</p>
+          <p className="font-semibold text-teal-700">
+            {customer.loyaltyPoints || 0}
+          </p>
         </div>
-
         <div>
           <p className="text-gray-600">Total Purchases</p>
-          <p className="font-semibold">₹{customer.purchases}</p>
+          <p className="font-semibold">₹0</p>
         </div>
       </div>
 
-      {/* Prescription Tag */}
-      {customer.hasPrescription && (
+      {customer.notes && (
         <div className="mt-5 bg-blue-50 text-blue-700 py-2 px-4 rounded-lg text-sm flex items-center gap-2">
           <MdOutlinePlaylistAddCheck />
           Has prescription notes

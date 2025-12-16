@@ -1,4 +1,5 @@
-import React from "react";
+
+import React, { useEffect, useState } from "react";
 import {
   DollarSign,
   ShoppingCart,
@@ -22,39 +23,94 @@ import {
   Cell,
 } from "recharts";
 
-const salesData = [
-  { name: "Mon", sales: 4000, profit: 1200 },
-  { name: "Tue", sales: 5000, profit: 1500 },
-  { name: "Wed", sales: 3500, profit: 1100 },
-  { name: "Thu", sales: 6500, profit: 2000 },
-  { name: "Fri", sales: 7200, profit: 2200 },
-  { name: "Sat", sales: 8500, profit: 2600 },
-  { name: "Sun", sales: 6000, profit: 1800 },
-];
-
-const categoryData = [
-  { name: "Prescription", value: 35 },
-  { name: "OTC", value: 25 },
-  { name: "Personal Care", value: 15 },
-  { name: "Others", value: 5 },
-];
-
 const COLORS = ["#0d9488", "#14b8a6", "#115e59", "#99f6e4"];
 
 const AdminDashboard = () => {
+  const [totalSales, setTotalSales] = useState(0);
+  const [weeklySales, setWeeklySales] = useState([]);
+  const [pendingBills, setPendingBills] = useState(0);
+  const [lowStock, setLowStock] = useState(0);
+  const [expiringSoon, setExpiringSoon] = useState(0);
+  const [categoryData, setCategoryData] = useState([]);
+
+  // ---------------------- Fetch Dashboard Data ----------------------
+  const fetchDashboardData = async () => {
+    try {
+      // Total Sales & Weekly Sales
+      const billsRes = await fetch("http://localhost:5000/api/bills");
+      const bills = await billsRes.json();
+      let total = 0;
+      const salesMap = {}; // { Mon: sales, Tue: sales, ... }
+
+      bills.forEach((bill) => {
+        total += bill.total || 0;
+        const day = new Date(bill.createdAt).toLocaleString("en-US", {
+          weekday: "short",
+        });
+        if (!salesMap[day]) salesMap[day] = 0;
+        salesMap[day] += bill.total || 0;
+      });
+
+      const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const weekly = weekDays.map((d) => ({
+        name: d,
+        sales: salesMap[d] || 0,
+        profit: (salesMap[d] || 0) * 0.3, // assuming 30% profit
+      }));
+
+      setTotalSales(total);
+      setWeeklySales(weekly);
+
+      // Pending Bills
+      const pendingRes = await fetch(
+        "http://localhost:5000/api/bills?status=pending"
+      );
+      const pending = await pendingRes.json();
+      setPendingBills(pending.length);
+
+      // Low Stock Items
+      const lowStockRes = await fetch(
+        "http://localhost:5000/api/products/low-stock"
+      );
+      const lowStockItems = await lowStockRes.json();
+      setLowStock(lowStockItems.length);
+
+      // Expiring Soon
+      const expiringRes = await fetch(
+        "http://localhost:5000/api/products/expiring"
+      );
+      const expiringItems = await expiringRes.json();
+      setExpiringSoon(expiringItems.length);
+
+      // Category Sales
+      const categoryRes = await fetch(
+        "http://localhost:5000/api/bills/category-sales"
+      );
+      const categories = await categoryRes.json();
+      setCategoryData(categories);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 5000); // update every 5 sec
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="p-6">
-
-      {/* Title */}
       <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="text-gray-500">Welcome back! Here’s what’s happening today.</p>
+      <p className="text-gray-500">
+        Welcome back! Here’s what’s happening today.
+      </p>
 
       {/* Action Buttons */}
       <div className="flex justify-end gap-3 mt-4">
         <button className="bg-teal-600 text-white px-4 py-2 rounded-lg shadow hover:bg-teal-700 flex items-center gap-2">
           + Create Bill
         </button>
-
         <button className="border px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
           🧾 Export Report
         </button>
@@ -62,43 +118,35 @@ const AdminDashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-4 gap-4 mt-6">
-
-        {/* Total Sales */}
         <Card
           icon={<DollarSign className="text-white" />}
           bg="bg-teal-600"
           title="Total Sales"
-          value="₹45,231"
+          value={`₹${totalSales.toLocaleString()}`}
           percent="+12.5%"
           positive={true}
         />
-
-        {/* Pending Bills */}
         <Card
           icon={<ShoppingCart className="text-white" />}
           bg="bg-blue-600"
           title="Pending Bills"
-          value="23"
+          value={pendingBills}
           percent="-5.2%"
           positive={false}
         />
-
-        {/* Low Stock Items */}
         <Card
           icon={<AlertTriangle className="text-white" />}
           bg="bg-orange-600"
           title="Low Stock Items"
-          value="12"
+          value={lowStock}
           percent="+3"
           positive={true}
         />
-
-        {/* Expiring Soon */}
         <Card
           icon={<Clock className="text-white" />}
           bg="bg-red-600"
           title="Expiring Soon"
-          value="8"
+          value={expiringSoon}
           percent="+2"
           positive={true}
         />
@@ -106,24 +154,34 @@ const AdminDashboard = () => {
 
       {/* Charts Section */}
       <div className="grid grid-cols-2 gap-6 mt-6">
-
         {/* Sales Overview */}
         <div className="bg-white rounded-xl shadow p-5">
           <div className="flex justify-between items-center mb-3">
             <div>
               <h2 className="text-lg font-semibold">Sales Overview</h2>
-              <p className="text-gray-500 text-sm">Weekly sales and profit trends</p>
+              <p className="text-gray-500 text-sm">
+                Weekly sales and profit trends
+              </p>
             </div>
             <TrendingUp className="text-teal-600" />
           </div>
-
-          <LineChart width={500} height={260} data={salesData}>
+          <LineChart width={500} height={260} data={weeklySales}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            <Line type="monotone" dataKey="sales" stroke="#0d9488" strokeWidth={3} />
-            <Line type="monotone" dataKey="profit" stroke="#14b8a6" strokeWidth={3} />
+            <Line
+              type="monotone"
+              dataKey="sales"
+              stroke="#0d9488"
+              strokeWidth={3}
+            />
+            <Line
+              type="monotone"
+              dataKey="profit"
+              stroke="#14b8a6"
+              strokeWidth={3}
+            />
           </LineChart>
         </div>
 
@@ -160,20 +218,13 @@ const AdminDashboard = () => {
 
 export default AdminDashboard;
 
-
-
 // Reusable Card Component
 const Card = ({ icon, bg, title, value, percent, positive }) => (
   <div className="bg-white rounded-xl shadow p-5 flex gap-4 items-start">
-
-    <div className={`${bg} p-3 rounded-xl text-white`}>
-      {icon}
-    </div>
-
+    <div className={`${bg} p-3 rounded-xl text-white`}>{icon}</div>
     <div className="flex flex-col w-full">
       <div className="flex justify-between">
         <p className="font-medium">{title}</p>
-
         <span
           className={`px-2 py-1 rounded-full text-sm ${
             positive
@@ -185,7 +236,6 @@ const Card = ({ icon, bg, title, value, percent, positive }) => (
           {percent}
         </span>
       </div>
-
       <h3 className="text-xl font-semibold mt-2">{value}</h3>
     </div>
   </div>
