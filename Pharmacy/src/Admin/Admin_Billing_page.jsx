@@ -649,8 +649,8 @@ win.document.write(`
 
   win.document.close();
   win.focus();
-  // win.print();
-  // win.close();
+  win.print();
+  win.close();
 };
 
  
