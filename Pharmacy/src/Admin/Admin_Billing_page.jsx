@@ -180,30 +180,278 @@ export default function Admin_Billing_Page() {
       alert("Failed to save bill!");
     }
   };
+const printBill = (billId) => {
+  const content = document.getElementById(`print-${billId}`);
+
+  /* ================= TOTAL CALCULATION (FIXED) ================= */
+  let totalAmount = 0;
+
+  content.querySelectorAll("tr").forEach(row => {
+    const cells = row.querySelectorAll("td");
+    if (cells.length > 0) {
+      const amountText = cells[cells.length - 1].innerText;
+      const value = amountText.replace(/[₹,]/g, "").trim();
+      totalAmount += Number(value) || 0;
+    }
+  });
+
+  /* ================= NUMBER TO WORDS (INDIAN) ================= */
+  const numberToWords = (num) => {
+    const a = [
+      "", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
+      "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen",
+      "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+    ];
+    const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+    const inWords = (n) => {
+      if (n < 20) return a[n];
+      if (n < 100) return b[Math.floor(n / 10)] + " " + a[n % 10];
+      if (n < 1000) return a[Math.floor(n / 100)] + " Hundred " + inWords(n % 100);
+      if (n < 100000) return inWords(Math.floor(n / 1000)) + " Thousand " + inWords(n % 1000);
+      if (n < 10000000) return inWords(Math.floor(n / 100000)) + " Lakh " + inWords(n % 100000);
+      return "";
+    };
+
+    return inWords(Math.floor(num)) + " Rupees Only";
+  };
+
+  const win = window.open("", "", "width=900,height=1000");
+
+  win.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>Invoice</title>
+
+<style>
+@page { size: A4; margin: 12mm; }
+* { box-sizing: border-box; }
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  font-size: 12px;
+}
+
+.invoice {
+  page-break-inside: avoid;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+}
+
+.header h1 {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+
+/* BOXES */
+.box-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.box {
+  background: #eaeaea;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.box h4 {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.box p {
+  margin: 2px 0;
+}
+
+/* TABLE */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+thead {
+  background: #2f2f2f;
+  color: #fff;
+}
+
+th, td {
+  padding: 6px;
+  border: 1px solid #ccc;
+  font-size: 11px;
+}
+
+tbody {
+  background: #f2f2f2;
+}
+
+tr {
+  page-break-inside: avoid;
+}
+
+/* BANK + TOTAL */
+.bottom {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.upi {
+  width: 100px;
+  height: 100px;
+  background: #222;
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.total {
+  text-align: right;
+}
+
+.total h2 {
+  margin: 6px 0;
+  font-size: 18px;
+}
+
+/* TERMS */
+.terms {
+  margin-top: 10px;
+}
+
+.terms li {
+  font-size: 11px;
+}
+
+/* FOOTER */
+.footer {
+  font-size: 10px;
+  margin-top: 6px;
+}
+
+.invoice, table, tr, td {
+  page-break-inside: avoid !important;
+}
+</style>
+</head>
+
+<body>
+<div class="invoice">
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>invoice</h1>
+    <div>invoice#</div>
+    <div>invoice Date</div>
+    <div>Due Date</div>
+  </div>
+  <img src="https://i.ibb.co/YXz9xDJ/logo.png" height="55"/>
+</div>
+
+<!-- BILL BOX -->
+<div class="box-row">
+  <div class="box">
+    <h4>Billed by</h4>
+    <p>Name</p>
+    <p>Address</p>
+    <p>DL NO</p>
+    <p>GSTIN</p>
+    <p>Contact</p>
+    <p>Email</p>
+  </div>
+
+  <div class="box">
+    <h4>Billed To</h4>
+    <p>Name</p>
+    <p>Address</p>
+    <p>GSTIN</p>
+    <p>Contact</p>
+    <p>Email</p>
+  </div>
+</div>
+
+<!-- ITEMS TABLE -->
+<table>
+<thead>
+<tr>
+  <th>Item</th>
+  <th>HSN</th>
+  <th>Qty</th>
+  <th>GST</th>
+  <th>Taxable</th>
+  <th>SGST</th>
+  <th>CGST</th>
+  <th>Amount</th>
+</tr>
+</thead>
+<tbody>
+${content.innerHTML}
+</tbody>
+</table>
+
+<!-- BANK + TOTAL -->
+<div class="bottom">
+  <div>
+    <strong>Bank & Payment Details</strong>
+    <div>Account Holder</div>
+    <div>Account No</div>
+    <div>IFSC</div>
+    <div>Bank</div>
+    <div class="upi">UPI QR</div>
+  </div>
+
+  <div class="total">
+    <div>Sub Total</div>
+    <div>Discount (10%)</div>
+    <div>Taxable Amount</div>
+    <div>CGST</div>
+    <div>SGST</div>
+    <h2>₹${totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</h2>
+    <div>${numberToWords(totalAmount)}</div>
+  </div>
+</div>
+
+<!-- TERMS -->
+<div class="terms">
+  <strong>Terms & Conditions</strong>
+  <ol>
+    <li></li>
+    <li></li>
+  </ol>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+For enquiries: Vendharaapharmaceuticals@gmail.com | +91 94429 59826
+</div>
+
+</div>
+</body>
+</html>
+  `);
+
+  win.document.close();
+  win.focus();
+  win.print();
+  win.close();
+};
 
  
-  const printBill = (billId) => {
-    const content = document.getElementById(`print-${billId}`);
-    const win = window.open("", "", "width=800,height=600");
-    win.document.write(`
-      <html>
-        <head>
-          <title>Invoice</title>
-          <style>
-            body { font-family: Arial; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid black; padding: 6px; }
-          </style>
-        </head>
-        <body>
-          ${content.innerHTML}
-        </body>
-      </html>
-    `);
-    win.document.close();
-    win.print();
-    win.close();
-  };
+
 
 
   const downloadBill = (billId, invoice) => {

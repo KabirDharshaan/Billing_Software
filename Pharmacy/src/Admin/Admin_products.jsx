@@ -93,6 +93,32 @@ export default function Admin_Products() {
         <StatCard label="Expiring Soon" value={expiringSoon} color="yellow" />
       </div>
 
+      {/* EXPIRING PRODUCT ALERT */}
+{products.length > 0 && (
+  <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 mb-6">
+    <h2 className="font-semibold text-yellow-800 mb-2">
+      ⚠ Expiring Product Alert
+    </h2>
+
+    {products.flatMap(p =>
+      p.batches
+        .filter(b => {
+          if (!b.expiryDate) return false;
+          const days =
+            (new Date(b.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
+          return days > 0 && days <= 30;
+        })
+        .map((b, i) => (
+          <p key={i} className="text-sm text-yellow-700">
+            <b>{p.name}</b> (Batch {b.batchNumber}) — expires on{" "}
+            {new Date(b.expiryDate).toLocaleDateString()}
+          </p>
+        ))
+    )}
+  </div>
+)}
+
+
       {/* Add / Search */}
       {showAddForm && <AddProductForm onClose={() => setShowAddForm(false)} onProductAdded={fetchProducts} />}
       <div className="flex flex-col md:flex-row items-center gap-4 mb-6">

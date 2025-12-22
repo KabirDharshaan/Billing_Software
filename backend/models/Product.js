@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
@@ -8,20 +7,14 @@ const productSchema = new mongoose.Schema(
     batches: [
       {
         batchNumber: { type: String, required: true },
-        expiryDate: { type: String },
+        expiryDate: { type: Date },   // ✅ FIXED
         price: { type: Number, default: 0 },
         quantity: { type: Number, required: true },
-        barcode: { type: String }
-      }
-    ]
+        barcode: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("Product", productSchema);
-
-
-
-
-
-

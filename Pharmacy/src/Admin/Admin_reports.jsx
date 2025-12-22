@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   FileDown,
   FileText,
@@ -11,7 +10,39 @@ import {
   BarChart,
 } from "lucide-react";
 
+/* ---------- SAME DATE FORMAT AS PRODUCT PAGE ---------- */
+const formatDate = (date) => {
+  if (!date) return "-";
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 export default function AdminReport() {
+  const [summary, setSummary] = useState(null);
+  const [topProducts, setTopProducts] = useState([]);
+  const [expiringProducts, setExpiringProducts] = useState([]);
+
+  /* ---------------- FETCH DATA ---------------- */
+  useEffect(() => {
+    fetch("http://localhost:5000/api/reports/summary")
+      .then((res) => res.json())
+      .then((data) => setSummary(data))
+      .catch(console.error);
+
+    fetch("http://localhost:5000/api/reports/top-products")
+      .then((res) => res.json())
+      .then((data) => setTopProducts(data))
+      .catch(console.error);
+
+    fetch("http://localhost:5000/api/reports/expiring-products")
+      .then((res) => res.json())
+      .then((data) => setExpiringProducts(data))
+      .catch(console.error);
+  }, []);
+
   return (
     <div className="p-6">
       {/* -------------------------------- HEADER -------------------------------- */}
@@ -37,26 +68,23 @@ export default function AdminReport() {
       {/* --------------------------- FILTER BOX --------------------------- */}
       <div className="bg-white p-5 rounded-xl shadow-sm border mb-8">
         <div className="grid grid-cols-3 gap-6 text-sm">
-          {/* Report Type */}
           <div>
             <label className="font-semibold">Report Type</label>
-            <select className="w-full mt-1 p-3 border rounded-lg bg-gray-50 outline-none">
+            <select className="w-full mt-1 p-3 border rounded-lg bg-gray-50">
               <option>Sales Report</option>
             </select>
           </div>
 
-          {/* Date Range */}
           <div>
             <label className="font-semibold">Date Range</label>
-            <select className="w-full mt-1 p-3 border rounded-lg bg-gray-50 outline-none">
-              <option>Last Month</option>
+            <select className="w-full mt-1 p-3 border rounded-lg bg-gray-50">
+              <option>Overall</option>
             </select>
           </div>
 
-          {/* Export Format */}
           <div>
             <label className="font-semibold">Export Format</label>
-            <select className="w-full mt-1 p-3 border rounded-lg bg-gray-50 outline-none">
+            <select className="w-full mt-1 p-3 border rounded-lg bg-gray-50">
               <option>PDF</option>
             </select>
           </div>
@@ -68,29 +96,29 @@ export default function AdminReport() {
         <StatCard
           icon={<DollarSign className="w-7 h-7 text-emerald-500" />}
           title="Total Revenue"
-          value="₹3,28,000"
-          change="+18.2%"
+          value={`₹${summary?.totalRevenue?.toLocaleString() || 0}`}
+          change="Live"
         />
 
         <StatCard
           icon={<TrendingUp className="w-7 h-7 text-green-600" />}
           title="Net Profit"
-          value="₹94,500"
-          change="+12.5%"
+          value={`₹${summary?.totalProfit?.toLocaleString() || 0}`}
+          change="30% margin"
         />
 
         <StatCard
           icon={<Package className="w-7 h-7 text-blue-600" />}
           title="Items Sold"
-          value="12,890"
-          change="+8.7%"
+          value={summary?.itemsSold || 0}
+          change="Total"
         />
 
         <StatCard
           icon={<BarChart3 className="w-7 h-7 text-orange-500" />}
           title="Avg. Order Value"
-          value="₹1,245"
-          change="+5.3%"
+          value={`₹${summary?.avgOrderValue?.toFixed(0) || 0}`}
+          change="Per bill"
         />
       </div>
 
@@ -100,7 +128,9 @@ export default function AdminReport() {
           <div className="flex justify-between items-center mb-3">
             <div>
               <h2 className="text-lg font-semibold">Sales & Profit Trend</h2>
-              <p className="text-gray-500 text-sm">Monthly performance overview</p>
+              <p className="text-gray-500 text-sm">
+                Monthly performance overview
+              </p>
             </div>
             <Calendar size={20} className="text-gray-600" />
           </div>
@@ -128,46 +158,24 @@ export default function AdminReport() {
       {/* ---------------- TOP PERFORMING PRODUCTS TABLE ---------------- */}
       <div className="bg-white p-6 rounded-xl shadow-sm border mb-10">
         <h2 className="text-xl font-semibold mb-4">Top Performing Products</h2>
-        <p className="text-gray-500 mb-4">Best-selling medicines & items</p>
 
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-gray-100 text-gray-700">
+            <tr className="bg-gray-100">
               <th className="p-3">Product Name</th>
               <th className="p-3">Revenue</th>
               <th className="p-3">Quantity Sold</th>
-              <th className="p-3">Growth (%)</th>
             </tr>
           </thead>
 
-          <tbody className="text-gray-700">
-            <tr className="border-b">
-              <td className="p-3">Paracetamol 650mg</td>
-              <td className="p-3">₹52,000</td>
-              <td className="p-3">1,240</td>
-              <td className="p-3 text-green-600 font-medium">+12.4%</td>
-            </tr>
-
-            <tr className="border-b">
-              <td className="p-3">Vitamin D3 Tablets</td>
-              <td className="p-3">₹38,500</td>
-              <td className="p-3">940</td>
-              <td className="p-3 text-green-600 font-medium">+9.8%</td>
-            </tr>
-
-            <tr className="border-b">
-              <td className="p-3">Cetirizine 10mg</td>
-              <td className="p-3">₹29,000</td>
-              <td className="p-3">760</td>
-              <td className="p-3 text-green-600 font-medium">+6.3%</td>
-            </tr>
-
-            <tr className="border-b">
-              <td className="p-3">Digital Thermometer</td>
-              <td className="p-3">₹19,800</td>
-              <td className="p-3">210</td>
-              <td className="p-3 text-green-600 font-medium">+3.1%</td>
-            </tr>
+          <tbody>
+            {topProducts.map((p, i) => (
+              <tr key={i} className="border-b">
+                <td className="p-3">{p.product}</td>
+                <td className="p-3">₹{p.revenue.toFixed(0)}</td>
+                <td className="p-3">{p.soldQty}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -177,13 +185,10 @@ export default function AdminReport() {
         <h2 className="text-xl font-semibold mb-4 text-red-600">
           Expiring Products Alert
         </h2>
-        <p className="text-gray-500 mb-4">
-          Products that are nearing expiry — take action immediately
-        </p>
 
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-red-100 text-gray-700">
+            <tr className="bg-red-100">
               <th className="p-3">Product Name</th>
               <th className="p-3">Batch No</th>
               <th className="p-3">Expiry Date</th>
@@ -192,30 +197,18 @@ export default function AdminReport() {
             </tr>
           </thead>
 
-          <tbody className="text-gray-700">
-            <tr className="border-b">
-              <td className="p-3">Amoxicillin 500mg</td>
-              <td className="p-3">BCH1840</td>
-              <td className="p-3 text-red-600 font-medium">12-Feb-2025</td>
-              <td className="p-3">180</td>
-              <td className="p-3">₹9,000</td>
-            </tr>
-
-            <tr className="border-b">
-              <td className="p-3">ORS Powder</td>
-              <td className="p-3">BCH2211</td>
-              <td className="p-3 text-red-600 font-medium">05-Mar-2025</td>
-              <td className="p-3">95</td>
-              <td className="p-3">₹2,850</td>
-            </tr>
-
-            <tr className="border-b">
-              <td className="p-3">Cough Syrup 100ml</td>
-              <td className="p-3">BCH1145</td>
-              <td className="p-3 text-red-600 font-medium">28-Feb-2025</td>
-              <td className="p-3">60</td>
-              <td className="p-3">₹3,600</td>
-            </tr>
+          <tbody>
+            {expiringProducts.map((e, i) => (
+              <tr key={i} className="border-b">
+                <td className="p-3">{e.product}</td>
+                <td className="p-3">{e.batch}</td>
+                <td className="p-3 text-red-600 font-medium">
+                  {formatDate(e.expiryDate)}
+                </td>
+                <td className="p-3">{e.quantity}</td>
+                <td className="p-3">₹{e.value.toFixed(0)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -224,13 +217,11 @@ export default function AdminReport() {
 }
 
 /* ------------------- STAT CARD COMPONENT ------------------- */
-const StatCard = ({ icon, title, value, change }) => {
-  return (
-    <div className="bg-white p-5 rounded-xl shadow-sm border">
-      <div className="mb-3">{icon}</div>
-      <h3 className="font-semibold">{title}</h3>
-      <p className="text-2xl font-bold mt-2">{value}</p>
-      <p className="text-green-600 font-medium mt-1">▲ {change}</p>
-    </div>
-  );
-};
+const StatCard = ({ icon, title, value, change }) => (
+  <div className="bg-white p-5 rounded-xl shadow-sm border">
+    <div className="mb-3">{icon}</div>
+    <h3 className="font-semibold">{title}</h3>
+    <p className="text-2xl font-bold mt-2">{value}</p>
+    <p className="text-green-600 font-medium mt-1">▲ {change}</p>
+  </div>
+);
