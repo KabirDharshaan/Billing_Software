@@ -267,7 +267,6 @@ const getBillPrintData = (bill) => {
       phone: bill.customerPhone || "Not Available",
       gstin: bill.gstin || "Not Available", // Add if available
       address: bill.address || "Address Not Available", // Add if available
-      contact: bill.contact || "Not Available", // Add if available
       email: bill.email || "Not Available" // Add if available
     },
 
@@ -631,7 +630,7 @@ win.document.write(`
           <div class="label">${printData.customer.name}</div>
           ${printData.customer.address}<br />
           <div class="label">GSTIN: <span>${printData.customer.gstin}</span></div>
-          <div class="label">Contact No: <span>${printData.customer.contact}</span></div>
+          <div class="label">Contact No: <span>${printData.customer.phone}</span></div>
           <div class="label">Email Id: <span>${printData.customer.email}<span/></div>
         </div>
       </div>
@@ -645,7 +644,7 @@ win.document.write(`
       <table class="items-table">
         <thead>
           <tr>
-            <th>Item Name</th>
+            <th>Item Name & Batch</th>
             <th>HSN</th>
             <th>Price</th>
             <th>QTY</th>
@@ -659,7 +658,7 @@ win.document.write(`
         <tbody>
           ${printData.items.map(item => `
             <tr>
-              <td>${item.name}<br/><small>${item.batchNumber}</small></td>
+              <td>${item.name}<br/><small>#${item.batchNumber}</small></td>
               <td>3004XXXX</td> <!-- Update with actual HSN -->
               <td>₹${parseFloat(item.price).toLocaleString('en-IN')}</td>
               <td>${item.qty}</td>
@@ -711,7 +710,7 @@ win.document.write(`
           </div>
           <div class="amount-summary-row">
             <span>Discount (${printData.summary.discount}%)</span>
-            <span>₹${printData.summary.discount}</span>
+            <span>₹${printData.summary.discountAmount}</span>
           </div>
           <div class="amount-summary-row">
             <span>Taxable Amount</span>
@@ -760,8 +759,8 @@ win.document.write(`
   // Delay for image rendering
   setTimeout(() => {
     requestAnimationFrame(() => {
-      win.print();
-      win.close();
+      // win.print();
+      // win.close();
     });
   }, 100);
   
@@ -1082,7 +1081,7 @@ win.document.write(`
           <div class="label">${printData.customer.name}</div>
           ${printData.customer.address}<br />
           <div class="label">GSTIN: <span>${printData.customer.gstin}</span></div>
-          <div class="label">Contact No: <span>${printData.customer.contact}</span></div>
+          <div class="label">Contact No: <span>${printData.customer.phone}</span></div>
           <div class="label">Email Id: <span>${printData.customer.email}<span/></div>
         </div>
       </div>
@@ -1096,7 +1095,7 @@ win.document.write(`
       <table class="items-table">
         <thead>
           <tr>
-            <th>Item Name</th>
+            <th>Item Name & Batch</th>
             <th>HSN</th>
             <th>Price</th>
             <th>QTY</th>
@@ -1110,7 +1109,7 @@ win.document.write(`
         <tbody>
           ${printData.items.map(item => `
             <tr>
-              <td>${item.name}<br/><small>${item.batchNumber}</small></td>
+              <td>${item.name}<br/><small>#${item.batchNumber}</small></td>
               <td>3004XXXX</td> <!-- Update with actual HSN -->
               <td>₹${parseFloat(item.price).toLocaleString('en-IN')}</td>
               <td>${item.qty}</td>
@@ -1162,7 +1161,7 @@ win.document.write(`
           </div>
           <div class="amount-summary-row">
             <span>Discount (${printData.summary.discount}%)</span>
-            <span>₹${printData.summary.discount}</span>
+            <span>₹${printData.summary.discountAmount}</span>
           </div>
           <div class="amount-summary-row">
             <span>Taxable Amount</span>
@@ -1468,7 +1467,7 @@ win.document.write(`
                   </div>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>{b.customerName || "No Name"}</span>
+                  <span>{b.customerName || "No Name"}, {b.customerPhone || "No Phone Number"}</span>
                   <span>{b.paymentMethod || "Cash"}</span>
                 </div>
                 <p className="text-gray-400 text-sm">
@@ -1476,17 +1475,49 @@ win.document.write(`
                 </p>
                 <div className="border-t pt-2">
                   <p className="font-semibold mb-1">Products:</p>
-                  <ul className="list-disc pl-5 text-gray-700 text-sm">
-                    {b.items.map((item) => (
-                      <li key={`${item._id}-${item.batchNumber}`}>
-                        {item.name} — ₹{item.price} × {item.qty} = ₹
-                        {(item.price * item.qty).toFixed(2)}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="overflow-hidden border rounded-sm text-sm text-gray-700">
+                    <table className="w-full min-w-[200px]">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="p-1.5 text-left font-medium text-xs">Item Name & Batch</th>
+                          <th className="p-1.5 text-center text-xs font-medium">HSN</th>
+                          <th className="p-1.5 text-center text-xs font-medium">Price</th>
+                          <th className="p-1.5 text-center text-xs font-medium">Qty</th>
+                          <th className="p-1.5 text-center text-xs font-medium">GST</th>
+                          <th className="p-1.5 text-center text-xs font-medium">Taxable Amount</th>
+                          <th className="p-1.5 text-center text-xs font-medium">SGST</th>
+                          <th className="p-1.5 text-center text-xs font-medium">CGST</th>
+                          <th className="p-1.5 text-right text-xs font-medium">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {b.items.map((item) => (
+                          <tr key={`${item._id}-${item.batchNumber}`} className="border-t border-gray-100 last:border-b-0">
+                            <td className="p-1.5 font-medium max-w-[120px] truncate">{item.name}
+                              {item.batchNumber && (
+                                <div className="text-xs text-gray-500 font-normal">#{item.batchNumber}</div>
+                              )}
+                            </td>
+                            <td className="p-1.5 text-center text-xs">3004XXXX</td> {/*Need to be changes*/}
+                            <td className="p-1.5 text-center text-xs">₹{item.price.toFixed(0)}</td>
+                            <td className="p-1.5 text-center text-xs">{item.qty}</td>
+                            <td className="p-1.5 text-center text-xs">18%</td>  {/*Need to be changes*/}
+                            <td className="p-1.5 text-center text-xs">₹{(item.price * item.qty).toFixed(2)}</td>
+                            <td className="p-1.5 text-center text-xs">₹{((item.price * item.qty)*0.09).toFixed(2)}</td>
+                            <td className="p-1.5 text-center text-xs">₹{((item.price * item.qty)*0.09).toFixed(2)}</td>
+                            <td className="p-1.5 text-right font-medium text-xs">₹{((item.price * item.qty)*1.18).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-                <div className="flex justify-end font-bold text-lg mt-2">
-                  <span>Total: ₹{b.total.toFixed(2)}</span>
+                <div className="flex flex-col items-end font-bold text-lg mt-2 space-y-1">
+                  <span>Sub Total: ₹{b.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span>Discount ({b.discount}%): ₹{b.discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span>SGST: ₹{(b.gst/2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span>CGST: ₹{(b.gst/2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span>Total: ₹{b.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
 
                 {/* Hidden div for print/download */}
