@@ -196,22 +196,11 @@ export default function Admin_Billing_Page() {
       alert("Failed to save bill!");
     }
   };
-const printBill = (billId) => {
-  const content = document.getElementById(`print-${billId}`);
 
-  /* ================= TOTAL CALCULATION (FIXED) ================= */
-  let totalAmount = 0;
+// Add this function inside your component to create bill print data
+const getBillPrintData = (bill) => {
 
-  content.querySelectorAll("tr").forEach(row => {
-    const cells = row.querySelectorAll("td");
-    if (cells.length > 0) {
-      const amountText = cells[cells.length - 1].innerText;
-      const value = amountText.replace(/[₹,]/g, "").trim();
-      totalAmount += Number(value) || 0;
-    }
-  });
-
-  /* ================= NUMBER TO WORDS (INDIAN) ================= */
+   /* ================= NUMBER TO WORDS (INDIAN) ================= */
   const numberToWords = (num) => {
     const a = [
       "", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
@@ -232,6 +221,126 @@ const printBill = (billId) => {
     return inWords(Math.floor(num)) + " Rupees Only";
   };
 
+  // Calculate accurate totals from items
+  const itemsWithTaxes = bill.items.map(item => {
+    const itemSubtotal = item.price * item.qty;
+    const gstRate = 0.18; // 18% GST as per your code
+    const cgst = itemSubtotal * (gstRate / 2); // 9%
+    const sgst = itemSubtotal * (gstRate / 2); // 9%
+    
+    return {
+      ...item,
+      subtotal: itemSubtotal,
+      gstRate: `${(gstRate * 100).toFixed(0)}%`,
+      cgst: cgst.toFixed(2),
+      sgst: sgst.toFixed(2),
+      total: (itemSubtotal + cgst + sgst).toFixed(2)
+    };
+  });
+
+  // Overall calculations
+  const grandSubtotal = bill.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const totalGst = itemsWithTaxes.reduce((sum, item) => sum + (parseFloat(item.cgst) + parseFloat(item.sgst)), 0);
+  const grandTotal = parseFloat(bill.total.toFixed(2));
+
+  return {
+    // Invoice Details
+    invoice: {
+      number: bill.invoice,
+      date: new Date(bill.createdAt).toLocaleDateString('en-IN'),
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN') // 7 days from now
+    },
+
+    // Business Details (Update these with your actual info)
+    business: {
+      name: "Vendharaa Pharmaceuticals",
+      address: "Your Business Address, Dharmapuri",
+      dlNo: "ABCD19813",
+      gstin: "87239N09386F",
+      contact: "+91 94429 59826",
+      email: "vendharaapharmaceuticals@gmail.com"
+    },
+
+    // Customer Details
+    customer: {
+      name: bill.customerName || "Walk-in Customer",
+      phone: bill.customerPhone || "Not Available",
+      gstin: bill.gstin || "Not Available", // Add if available
+      address: bill.address || "Address Not Available", // Add if available
+      contact: bill.contact || "Not Available", // Add if available
+      email: bill.email || "Not Available" // Add if available
+    },
+
+    // Items with tax breakdown
+    items: itemsWithTaxes,
+
+    // Summary Calculations
+    summary: {
+      subtotal: grandSubtotal.toFixed(2),
+      discount: bill.discount || 0,
+      discountAmount: ((grandSubtotal * (bill.discount || 0)) / 100).toFixed(2),
+      taxableAmount: (grandSubtotal - ((grandSubtotal * (bill.discount || 0)) / 100)).toFixed(2),
+      cgstTotal: (totalGst / 2).toFixed(2),
+      sgstTotal: (totalGst / 2).toFixed(2),
+      totalGst: totalGst.toFixed(2),
+      grandTotal: grandTotal.toFixed(2)
+    },
+
+    // Payment Details
+    payment: {
+      method: bill.paymentMethod || "Cash",
+      amount: grandTotal.toFixed(2),
+      status: bill.paid ? "Paid" : "Pending"
+    },
+
+    // Formatted amounts for display
+    formatted: {
+      subtotal: grandSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      grandTotal: grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      words: numberToWords(grandTotal) // Use your existing numberToWords function
+    },
+
+    // Additional info
+    placeOfSupply: "Dharmapuri",
+    countryOfSupply: "India",
+    terms: [
+      "Goods once sold will not be taken back",
+      "Please verify items before leaving counter"
+    ],
+
+    // Bank Details (Update with actual info)
+    bank: {
+      accountHolder: "Vendharaa Pharmaceuticals",
+      accountNumber: "XXXXXXX",
+      ifsc: "XXXXXXXX",
+      accountType: "Current",
+      bankName: "Bank Name",
+      upi: "vendharaa-upi@upi"
+    }
+  };
+};
+
+
+const printBill = (billId) => {
+
+  const bill = bills.find(b => b._id === billId);
+  if (!bill) return;
+
+  const printData = getBillPrintData(bill);
+  const content = document.getElementById(`print-${billId}`);
+
+  /* ================= TOTAL CALCULATION (FIXED) ================= */
+  let totalAmount = 0;
+
+  content.querySelectorAll("tr").forEach(row => {
+    const cells = row.querySelectorAll("td");
+    if (cells.length > 0) {
+      const amountText = cells[cells.length - 1].innerText;
+      const value = amountText.replace(/[₹,]/g, "").trim();
+      totalAmount += Number(value) || 0;
+    }
+  });
+
   const win = window.open("", "", "width=900,height=1000");
 
 win.document.write(`
@@ -239,7 +348,7 @@ win.document.write(`
   <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Vendharaa Invoice</title>
+    <title>Vendharaa Invoice ${printData.invoice.number}</title>
     <style>
       * {
         box-sizing: border-box;
@@ -318,6 +427,10 @@ win.document.write(`
 
       .label {
         font-weight: 600;
+        margin-top: 4px;
+      }
+      .label span {
+        font-weight: 500;
         margin-top: 4px;
       }
 
@@ -492,9 +605,9 @@ win.document.write(`
         <div>
           <div class="invoice-title">Invoice</div>
           <div class="invoice-meta">
-            Invoice #<br />
-            Invoice Date:<br />
-            Due Date:
+            Invoice: ${printData.invoice.number}<br />
+            Invoice Date: ${printData.invoice.date}<br />
+            Due Date: ${printData.invoice.dueDate}
           </div>
         </div>
         <div class="logo">
@@ -506,35 +619,36 @@ win.document.write(`
       <!-- Billed by / Billed to -->
       <div class="top-boxes">
         <div class="card">
-          <div class="card-title">Billed by</div>
-          <div class="label">Name</div>
-          Address<br />
-          <div class="label">DL NO</div>
-          <div class="label">GSTIN</div>
-          <div class="label">Contact No</div>
-          <div class="label">Email Id</div>
+          <div class="card-title">Billed By</div>
+          <div class="label">${printData.business.name}</div>
+          ${printData.business.address}<br />
+          <div class="label">DL No: <span>${printData.business.dlNo}</span></div>
+          <div class="label">GSTIN: <span>${printData.business.gstin}</span></div>
+          <div class="label">Contact No: <span>${printData.business.contact}</span></div>
+          <div class="label">Email Id: <span>${printData.business.email}</span></div>
         </div>
         <div class="card">
           <div class="card-title">Billed To</div>
-          <div class="label">Name</div>
-          Address<br />
-          <div class="label">GSTIN</div>
-          <div class="label">Contact No</div>
-          <div class="label">Email Id</div>
+          <div class="label">${printData.customer.name}</div>
+          ${printData.customer.address}<br />
+          <div class="label">GSTIN: <span>${printData.customer.gstin}</span></div>
+          <div class="label">Contact No: <span>${printData.customer.contact}</span></div>
+          <div class="label">Email Id: <span>${printData.customer.email}<span/></div>
         </div>
       </div>
 
       <div class="sub-header">
-        <span>Place of Supply Dharmapuri</span>
-        <span>Country of supply India</span>
+        <span>Place of Supply: ${printData.placeOfSupply}</span>
+        <span>Country of supply: ${printData.countryOfSupply}</span>
       </div>
 
       <!-- Items table -->
       <table class="items-table">
         <thead>
           <tr>
-            <th>item / item discription</th>
+            <th>Item Name</th>
             <th>HSN</th>
+            <th>Price</th>
             <th>QTY</th>
             <th>GST</th>
             <th>Taxable Amount</th>
@@ -544,26 +658,19 @@ win.document.write(`
           </tr>
         </thead>
         <tbody>
-          <tr>
-              <td>Paracetamol 500mg Strip (10 tablets)</td>
-              <td>30045000</td>
-              <td>5</td>
-              <td>12%</td>
-              <td>₹1,250.00</td>
-              <td>₹75.00</td>
-              <td>₹75.00</td>
-              <td>₹1,400.00</td>
-          </tr>
-          <tr>
-              <td>Amoxicillin 250mg Bottle (60 ml)</td>
-              <td>30042000</td>
-              <td>3</td>
-              <td>12%</td>
-              <td>₹900.00</td>
-              <td>₹54.00</td>
-              <td>₹54.00</td>
-              <td>₹1,008.00</td>
-          </tr>
+          ${printData.items.map(item => `
+            <tr>
+              <td>${item.name}<br/><small>${item.batchNumber}</small></td>
+              <td>3004XXXX</td> <!-- Update with actual HSN -->
+              <td>₹${parseFloat(item.price).toLocaleString('en-IN')}</td>
+              <td>${item.qty}</td>
+              <td>${item.gstRate}</td>
+              <td>₹${parseFloat(item.subtotal).toLocaleString('en-IN')}</td>
+              <td>₹${item.sgst}</td>
+              <td>₹${item.cgst}</td>
+              <td>₹${item.total}</td>
+            </tr>
+          `).join('')}
           </tbody>
       </table>
 
@@ -573,12 +680,12 @@ win.document.write(`
         <div class="bank-details">
           <div class="bank-left">
             <h3>Bank &amp; Payment Details</h3>
-            <div class="label">Account Holder Name</div>
-            <div class="label">Account Number</div>
-            <div class="label">IFSC</div>
-            <div class="label">Account Type</div>
-            <div class="label">Bank</div>
-            <div class="label">UPI</div>
+            <div class="label">Account Holder Name: <span>${printData.bank.accountHolder}</span></div>
+            <div class="label">Account Number: <span>${printData.bank.accountNumber}</span></div>
+            <div class="label">IFSC: <span>${printData.bank.ifsc}</span></div>
+            <div class="label">Account Type: <span>${printData.bank.accountType}</span></div>
+            <div class="label">Bank: <span>${printData.bank.bankName}</span></div>
+            <div class="label">UPI: <span>${printData.bank.upi}</span></div>
           </div>
 
           <div class="upi-qr-wrapper">
@@ -601,33 +708,33 @@ win.document.write(`
           <h3>Summary</h3>
           <div class="amount-summary-row">
             <span>Sub Total</span>
-            <span>₹${totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+            <span>₹${printData.summary.subtotal}</span>
           </div>
           <div class="amount-summary-row">
-            <span>Discount(10%)</span>
-            <span>₹0.00</span>
+            <span>Discount (${printData.summary.discount}%)</span>
+            <span>₹${printData.summary.discount}</span>
           </div>
           <div class="amount-summary-row">
             <span>Taxable Amount</span>
-            <span>₹0.00</span>
+            <span>₹${printData.summary.taxableAmount}</span>
           </div>
           <div class="amount-summary-row">
             <span>CGST</span>
-            <span>₹0.00</span>
+            <span>₹${printData.summary.cgstTotal}</span>
           </div>
           <div class="amount-summary-row">
             <span>SGST</span>
-            <span>₹0.00</span>
+            <span>₹${printData.summary.sgstTotal}</span>
           </div>
 
           <div class="amount-summary-row total">
             <span>Total</span>
-            <span>₹0.00</span>
+            <span>₹${printData.summary.grandTotal}</span>
           </div>
 
           <div class="invoice-words">
-            invoice Total (in Words)<br />
-            ${numberToWords(totalAmount)}
+            Invoice Total (In Words):<br />
+            ${printData.formatted.words}
           </div>
         </div>
       </div>
@@ -635,8 +742,8 @@ win.document.write(`
       <!-- Footer with QR for detailed invoice -->
       <div class="footer">
         <div>
-          For any enquiries, email us on VendharaaPharmaceuticals@gmail.com<br />
-          +91 94429 59826
+          For any enquiries, email us on ${printData.business.email}<br />
+          or call us on ${printData.business.contact}
         </div>
         <div class="qr-box">
           <span>Scan To View<br />Detailed Invoice</span>
@@ -655,7 +762,7 @@ win.document.write(`
   setTimeout(() => {
     requestAnimationFrame(() => {
       win.print();
-      win.close()
+      win.close();
     });
   }, 100);
   
