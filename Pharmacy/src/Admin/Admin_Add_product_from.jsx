@@ -10,6 +10,7 @@ export default function Admin_Add_Product({ onClose }) {
     batchNumber: "",
     expiryDate: "",
     price: "",
+    gst: "",          // ✅ ADDED
     quantity: "",
     barcode: "",
   });
@@ -30,6 +31,7 @@ export default function Admin_Add_Product({ onClose }) {
           batchNumber: form.batchNumber,
           expiryDate: form.expiryDate,
           price: Number(form.price),
+          gst: Number(form.gst),      // ✅ SENT TO BACKEND
           quantity: Number(form.quantity),
           barcode: form.barcode,
         }),
@@ -79,7 +81,6 @@ export default function Admin_Add_Product({ onClose }) {
             <option value="Antibiotics">Antibiotics</option>
             <option value="Vitamins">Vitamins</option>
             <option value="Supplements">Supplements</option>
-            {/* Add more categories as needed */}
           </select>
 
           {/* Manufacturer */}
@@ -109,13 +110,23 @@ export default function Admin_Add_Product({ onClose }) {
             className="p-2 border rounded"
           />
 
-          {/* Price */}
+          {/* Price (Without GST) */}
           <input
             name="price"
             type="number"
             value={form.price}
             onChange={handle}
-            placeholder="0.00"
+            placeholder="Base price"
+            className="p-2 border rounded"
+          />
+
+          {/* GST Percentage */}
+          <input
+            name="gst"
+            type="number"
+            value={form.gst}
+            onChange={handle}
+            placeholder="GST %"
             className="p-2 border rounded"
           />
 
@@ -135,7 +146,7 @@ export default function Admin_Add_Product({ onClose }) {
             value={form.barcode}
             onChange={handle}
             placeholder="Scan or enter"
-            className="p-2 border rounded"
+            className="p-2 border rounded col-span-2"
           />
         </div>
 
@@ -149,3 +160,4 @@ export default function Admin_Add_Product({ onClose }) {
     </div>
   );
 }
+

@@ -1,18 +1,20 @@
+
+
 const mongoose = require("mongoose");
+
+const batchSchema = new mongoose.Schema({
+  batchNumber: { type: String, required: true },
+  expiryDate: { type: Date },
+  price: { type: Number, default: 0 },      
+  gst: { type: Number, default: 0 },         
+  quantity: { type: Number, required: true },
+  barcode: { type: String },
+});
 
 const productSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-
-    batches: [
-      {
-        batchNumber: { type: String, required: true },
-        expiryDate: { type: Date },   // ✅ FIXED
-        price: { type: Number, default: 0 },
-        quantity: { type: Number, required: true },
-        barcode: { type: String },
-      },
-    ],
+    name: { type: String, required: true, unique: true },
+    batches: [batchSchema],
   },
   { timestamps: true }
 );
