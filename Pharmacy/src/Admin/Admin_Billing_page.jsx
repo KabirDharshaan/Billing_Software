@@ -5,7 +5,6 @@ import logo from '../assets/logo_c.png'
 const API_PRODUCTS = "http://localhost:5000/api/products";
 const API_BILLS = "http://localhost:5000/api/bills";
 
-// Reusable trash icon component (top-level to prevent render-time redefine)
 const TrashIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6" />
