@@ -47,18 +47,9 @@
 
 
 
-
-
-
-
-
-
-
-
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
-const path = require("path");
 const connectDB = require("./config/db");
 
 dotenv.config();
@@ -67,9 +58,6 @@ const app = express();
 /* ================= Middleware ================= */
 app.use(cors());
 app.use(express.json());
-
-/* ================= Static Files ================= */
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ================= Database ================= */
 connectDB();
@@ -87,7 +75,7 @@ app.use(
   require("./routes/generalSettings_routes")
 );
 
-/* 👉 User Role / User Management Route */
+/* 👉 User Role / User Management Route ✅ */
 app.use("/api/users", require("./routes/user_routes"));
 
 /* ================= Root ================= */
