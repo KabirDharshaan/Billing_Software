@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 import { FiX } from "react-icons/fi";
 
-export default function Admin_Add_Supplier({ onClose, refreshSuppliers }) {
-  const [supplier, setSupplier] = useState({
+export default function Admin_Add_Supplier({ onClose, refreshSuppliers, initialData, mode }) {
+  const [supplier, setSupplier] = useState(initialData || {
     name: "",
     phone: "",
     email: "",
@@ -34,25 +34,30 @@ export default function Admin_Add_Supplier({ onClose, refreshSuppliers }) {
 
     try {
       setLoading(true);
-
-      const response = await fetch(
-        "http://localhost:5000/api/suppliers",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      if (mode === 'edit' && initialData && initialData._id) {
+        const res = await fetch(`http://localhost:5000/api/suppliers/${initialData._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(supplier),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to add supplier");
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update supplier');
+        alert('Supplier updated');
+      } else {
+        const response = await fetch(
+          "http://localhost:5000/api/suppliers",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(supplier),
+          }
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Failed to add supplier");
+        alert("Supplier added successfully");
       }
-
-      alert("Supplier added successfully");
 
       // Refresh supplier list if parent provides it
       if (refreshSuppliers) refreshSuppliers();
@@ -77,7 +82,7 @@ export default function Admin_Add_Supplier({ onClose, refreshSuppliers }) {
           <FiX size={20} />
         </button>
 
-        <h2 className="text-xl font-semibold mb-6">Add New Supplier</h2>
+        <h2 className="text-xl font-semibold mb-6">{mode === 'edit' ? 'Edit Supplier' : 'Add New Supplier'}</h2>
 
         {/* SUPPLIER NAME */}
         <div className="mb-4">
@@ -179,7 +184,7 @@ export default function Admin_Add_Supplier({ onClose, refreshSuppliers }) {
             disabled={loading}
             className="px-5 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
           >
-            {loading ? "Saving..." : "Add Supplier"}
+            {loading ? "Saving..." : (mode === 'edit' ? 'Update Supplier' : 'Add Supplier')}
           </button>
         </div>
       </div>

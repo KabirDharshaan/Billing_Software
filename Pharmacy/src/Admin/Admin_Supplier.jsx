@@ -15,6 +15,7 @@ export default function AdminSupplier() {
   const [suppliers, setSuppliers] = useState([]);
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editSupplier, setEditSupplier] = useState(null);
   const [loading, setLoading] = useState(true);
 
   /* ---------------- FETCH SUPPLIERS ---------------- */
@@ -178,7 +179,10 @@ export default function AdminSupplier() {
                   </td>
                   <td className="p-4">
                     <div className="flex gap-3">
-                      <FiEdit className="text-blue-600 cursor-pointer" />
+                      <FiEdit
+                        className="text-blue-600 cursor-pointer"
+                        onClick={() => { setEditSupplier(s); setShowAddModal(true); }}
+                      />
                       <FiTrash2
                         className="text-red-600 cursor-pointer"
                         onClick={() => handleDelete(s._id)}
@@ -195,8 +199,10 @@ export default function AdminSupplier() {
       {/* ADD SUPPLIER MODAL */}
       {showAddModal && (
         <Admin_Add_Supplier
-          onClose={() => setShowAddModal(false)}
+          onClose={() => { setShowAddModal(false); setEditSupplier(null); }}
           refreshSuppliers={fetchSuppliers}
+          initialData={editSupplier}
+          mode={editSupplier ? 'edit' : 'add'}
         />
       )}
     </div>

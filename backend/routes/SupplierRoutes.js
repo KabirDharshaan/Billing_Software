@@ -73,4 +73,19 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+/**
+ * @route   PUT /api/suppliers/:id
+ * @desc    Update supplier
+ */
+router.put("/:id", async (req, res) => {
+  try {
+    const updates = req.body;
+    const supplier = await Supplier.findByIdAndUpdate(req.params.id, updates, { new: true });
+    if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
+    res.json({ message: 'Supplier updated', supplier });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
