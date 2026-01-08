@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   DollarSign,
   ShoppingCart,
-  Users,
-  TrendingUp,
-  FileText,
+  AlertTriangle,
+  Clock,
   ArrowUpRight,
   ArrowDownRight,
+  TrendingUp,
+  Package,
 } from "lucide-react";
 
 import {
@@ -16,171 +17,204 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 
-// WEEKLY BILLING TREND (Dummy Data)
-const salesData = [
-  { name: "Mon", sales: 3200 },
-  { name: "Tue", sales: 4100 },
-  { name: "Wed", sales: 3000 },
-  { name: "Thu", sales: 5500 },
-  { name: "Fri", sales: 6000 },
-  { name: "Sat", sales: 7200 },
-  { name: "Sun", sales: 4800 },
-];
+const AdminDashboard = () => {
+  const [totalSales, setTotalSales] = useState(0);
+  const [weeklySales, setWeeklySales] = useState([]);
+  const [pendingBills, setPendingBills] = useState(0);
+  const [lowStock, setLowStock] = useState(0);
+  const [expiringSoon, setExpiringSoon] = useState(0);
+  const [topProducts, setTopProducts] = useState([]);
 
-// BILL TYPE DISTRIBUTION
-const billingCategory = [
-  { name: "Prescription", value: 45 },
-  { name: "OTC", value: 30 },
-  { name: "General", value: 15 },
-  { name: "Others", value: 10 },
-];
+  // ---------------------- FETCH DASHBOARD DATA ----------------------
+  const fetchDashboardData = async () => {
+    try {
+      /* ---------------------- BILLS ---------------------- */
+      const billsRes = await fetch("http://localhost:5000/api/bills");
+      const bills = await billsRes.json();
 
-const COLORS = ["#0d9488", "#14b8a6", "#115e59", "#99f6e4"];
+      let total = 0;
+      const salesMap = {};
 
-const CashierDashboard = () => {
+      bills.forEach((bill) => {
+        total += bill.total || 0;
+        const day = new Date(bill.createdAt).toLocaleString("en-US", {
+          weekday: "short",
+        });
+        salesMap[day] = (salesMap[day] || 0) + (bill.total || 0);
+      });
+
+      const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const weekly = weekDays.map((d) => ({
+        name: d,
+        sales: salesMap[d] || 0,
+        profit: (salesMap[d] || 0) * 0.3,
+      }));
+
+      setTotalSales(total);
+      setWeeklySales(weekly);
+      setPendingBills(0); // you don't have bill status logic yet
+
+      /* ---------------------- PRODUCTS ---------------------- */
+      const productsRes = await fetch("http://localhost:5000/api/products");
+      const products = await productsRes.json();
+
+      let low = 0;
+      let expiring = 0;
+
+      products.forEach((p) => {
+        p.batches.forEach((b) => {
+          if (b.quantity <= 0) return;
+          if (b.quantity < 10) low++;
+
+          if (b.expiryDate) {
+            const days =
+              (new Date(b.expiryDate) - new Date()) /
+              (1000 * 60 * 60 * 24);
+            if (days > 0 && days <= 30) expiring++;
+          }
+        });
+      });
+
+      setLowStock(low);
+      setExpiringSoon(expiring);
+
+      /* ---------------------- TOP PRODUCTS ---------------------- */
+      const topRes = await fetch(
+        "http://localhost:5000/api/products/top-performing"
+      );
+      const top = await topRes.json();
+      setTopProducts(top);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="p-6">
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <p className="text-gray-500">Welcome back! Here’s what’s happening today.</p>
 
-      {/* Title */}
-      <h1 className="text-2xl font-semibold">Cashier Dashboard</h1>
-      <p className="text-gray-500">Quick overview of today’s performance.</p>
-
-      {/* Top Buttons */}
-      <div className="flex justify-end gap-3 mt-4">
-        <button className="bg-teal-600 text-white px-4 py-2 rounded-lg shadow hover:bg-teal-700 flex items-center gap-2">
-          + New Bill
-        </button>
-        <button className="border px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
-          🧾 Today Report
-        </button>
-      </div>
-
-      {/* Stats Cards */}
+      {/* ---------------- STATS CARDS ---------------- */}
       <div className="grid grid-cols-4 gap-4 mt-6">
-
         <Card
           icon={<DollarSign className="text-white" />}
           bg="bg-teal-600"
-          title="Today's Sales"
-          value="₹12,540"
-          percent="+8.4%"
-          positive={true}
+          title="Total Sales"
+          value={`₹${totalSales.toLocaleString()}`}
+          percent="+"
+          positive
         />
-
         <Card
           icon={<ShoppingCart className="text-white" />}
           bg="bg-blue-600"
-          title="Pending Bills"
-          value="7"
-          percent="-2%"
-          positive={false}
+          title="Bills Created"
+          value={weeklySales.reduce((a, b) => a + (b.sales > 0 ? 1 : 0), 0)}
+          percent=""
+          positive
         />
-
         <Card
-          icon={<Users className="text-white" />}
-          bg="bg-purple-600"
-          title="Total Customers Today"
-          value="156"
-          percent="+4.3%"
-          positive={true}
+          icon={<AlertTriangle className="text-white" />}
+          bg="bg-orange-600"
+          title="Low Stock Batches"
+          value={lowStock}
+          percent=""
+          positive
         />
-
         <Card
-          icon={<FileText className="text-white" />}
-          bg="bg-orange-500"
-          title="Fast-Moving Items"
-          value="14"
-          percent="+3"
-          positive={true}
+          icon={<Clock className="text-white" />}
+          bg="bg-red-600"
+          title="Expiring Soon"
+          value={expiringSoon}
+          percent=""
+          positive
         />
       </div>
 
-      {/* Chart Section */}
+      {/* ---------------- CHARTS ---------------- */}
       <div className="grid grid-cols-2 gap-6 mt-6">
-
-        {/* Sales Trend Chart */}
+        {/* SALES OVERVIEW */}
         <div className="bg-white rounded-xl shadow p-5">
           <div className="flex justify-between items-center mb-3">
             <div>
-              <h2 className="text-lg font-semibold">Weekly Billing Trend</h2>
-              <p className="text-gray-500 text-sm">Daily total bill amounts</p>
+              <h2 className="text-lg font-semibold">Sales Overview</h2>
+              <p className="text-gray-500 text-sm">
+                Weekly sales and profit trends
+              </p>
             </div>
             <TrendingUp className="text-teal-600" />
           </div>
 
-          <LineChart width={500} height={260} data={salesData}>
+          <LineChart width={500} height={260} data={weeklySales}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            <Line
-              type="monotone"
-              dataKey="sales"
-              stroke="#0d9488"
-              strokeWidth={3}
-            />
+            <Line type="monotone" dataKey="sales" stroke="#0d9488" strokeWidth={3} />
+            <Line type="monotone" dataKey="profit" stroke="#14b8a6" strokeWidth={3} />
           </LineChart>
         </div>
 
-        {/* Billing Category Pie Chart */}
+        {/* TOP PRODUCTS */}
         <div className="bg-white rounded-xl shadow p-5">
           <div className="flex justify-between items-center mb-3">
             <div>
-              <h2 className="text-lg font-semibold">Billing Categories</h2>
-              <p className="text-gray-500 text-sm">Today's bill distribution</p>
+              <h2 className="text-lg font-semibold">Top Performing Products</h2>
+              <p className="text-gray-500 text-sm">
+                Based on quantity sold
+              </p>
             </div>
-            <FileText className="text-teal-600" />
+            <Package className="text-teal-600" />
           </div>
 
-          <PieChart width={400} height={260}>
-            <Pie
-              data={billingCategory}
-              cx="50%"
-              cy="50%"
-              outerRadius={90}
-              fill="#0d9488"
-              dataKey="value"
-              label
-            >
-              {billingCategory.map((entry, index) => (
-                <Cell key={index} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-          </PieChart>
+          {topProducts.length === 0 ? (
+            <p className="text-gray-400">No sales data yet</p>
+          ) : (
+            topProducts.map((p, i) => (
+              <div
+                key={i}
+                className="flex justify-between border-b py-2 text-sm"
+              >
+                <span>{p._id}</span>
+                <span className="font-semibold">{p.soldQty} sold</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default CashierDashboard;
+export default AdminDashboard;
 
-// Reusable Card component
+/* ---------------- CARD COMPONENT ---------------- */
 const Card = ({ icon, bg, title, value, percent, positive }) => (
   <div className="bg-white rounded-xl shadow p-5 flex gap-4 items-start">
     <div className={`${bg} p-3 rounded-xl text-white`}>{icon}</div>
-
     <div className="flex flex-col w-full">
       <div className="flex justify-between">
         <p className="font-medium">{title}</p>
-
-        <span
-          className={`px-2 py-1 rounded-full text-sm ${
-            positive
-              ? "bg-green-100 text-green-600"
-              : "bg-red-100 text-red-600"
-          }`}
-        >
-          {positive ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />}
-          {percent}
-        </span>
+        {percent && (
+          <span
+            className={`px-2 py-1 rounded-full text-sm ${
+              positive
+                ? "bg-green-100 text-green-600"
+                : "bg-red-100 text-red-600"
+            }`}
+          >
+            {positive ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />}
+            {percent}
+          </span>
+        )}
       </div>
-
       <h3 className="text-xl font-semibold mt-2">{value}</h3>
     </div>
   </div>
